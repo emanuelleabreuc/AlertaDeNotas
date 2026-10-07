@@ -14,7 +14,7 @@ load_dotenv()
 MATRICULA = os.getenv("MATRICULA")
 SENHA = os.getenv("SENHA")
 
-# Configurações do projeto 
+
 URL_PORTAL = "https://aluno.uvv.br/"
 DISCIPLINA = "Programação Orientada a Objetos II"  
 INTERVALO_MINUTOS = 30  # de quanto em quanto tempo checar 
