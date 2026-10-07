@@ -22,7 +22,10 @@ URL_PORTAL = "https://aluno.uvv.br/"
 DISCIPLINA = "Programação Orientada a Objetos II"  
 INTERVALO_MINUTOS = 30  # de quanto em quanto tempo checar 
 TIMEOUT = 15
+TIMEOUT_LOGIN = 20
 SELETOR_CAMPO_MATRICULA = (By.ID, "Matricula")
+SELETOR_CAMPO_SENHA = (By.ID, "Password")
+SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit") 
 
 
 
@@ -51,7 +54,21 @@ def iniciar_navegador():
     return driver
 
 def abrir_portal(driver):
+    """Abre o portal e espera o campo de matrícula ficar visível."""
     driver.get(URL_PORTAL)
+
+    try:
+        WebDriverWait(driver, TIMEOUT).until(
+            EC.visibility_of_element_located(SELETOR_CAMPO_MATRICULA)
+        )
+    except TimeoutException:
+        print(
+            "Erro: o campo de matrícula não apareceu. Confira o seletor, "
+            "se existe iframe ou se a página carregou."
+        )
+        raise
+ 
+    print("Portal carregado com sucesso.")
 
 
 
