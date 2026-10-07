@@ -1,0 +1,17 @@
+# Credenciais
+.env
+
+# Ambientes virtuais
+.venv/
+.venv-1/
+.venv*/
+
+# Estado do script (passo 8)
+estado.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Screenshots de erro (passo 10)
+*.png
