@@ -26,12 +26,13 @@ TIMEOUT_LOGIN = 20
 SELETOR_CAMPO_MATRICULA = (By.ID, "Matricula")
 SELETOR_CAMPO_SENHA = (By.ID, "Password")
 SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit") 
-
+SELETOR_LOGADO = (By.CSS_SELECTOR, ".fa-sign-out")  # ícone de logout, que só aparece quando logado
+SELETOR_ERRO_LOGIN = (By.CSS_SELECTOR, ".portal-login-feedback.portal-login-feedback-danger")  # mensagem de erro de login
 
 
 def carregar_credenciais():
     """Confere se as variáveis do .env foram preenchidas. Para o script se faltar algo."""
-    faltando = []
+    faltando = [] #guarda as variáveis que não foram preenchidas
     if not MATRICULA or MATRICULA.startswith("coloque_"):
         faltando.append("MATRICULA")
     if not SENHA or SENHA.startswith("coloque_"):
@@ -49,9 +50,9 @@ def carregar_credenciais():
 
 def iniciar_navegador():
     """Inicia o navegador e abre a página do portal."""
-    driver = webdriver.Chrome()
-    driver.maximize_window()
-    return driver
+    driver = webdriver.Chrome() #faz o driver do navegador abrir o chrome
+    driver.maximize_window() #maximiza a janela do navegador
+    return driver #mostra o driver para ser usado em outras funções
 
 def abrir_portal(driver):
     """Abre o portal e espera o campo de matrícula ficar visível."""
