@@ -72,16 +72,51 @@ def abrir_portal(driver):
     print("Portal carregado com sucesso.")
 
 
+def fazer_login(driver):
+    """Preenche matrícula e senha, clica em Entrar e confere se o login deu certo."""
+    campo_matricula = driver.find_element(*SELETOR_CAMPO_MATRICULA)
+    campo_matricula.clear() #limpa o campo caso já tenha algo escrito
+    campo_matricula.send_keys(MATRICULA) #digita a matrícula
+
+    campo_senha = driver.find_element(*SELETOR_CAMPO_SENHA)
+    campo_senha.clear()
+    campo_senha.send_keys(SENHA) #digita a senha
+
+    WebDriverWait(driver, TIMEOUT).until(
+        EC.element_to_be_clickable(SELETOR_BOTAO_ENTRAR)
+    ).click() #espera o botão poder ser clicado e clica
+
+    # espera aparecer o ícone de logout (deu certo) OU a mensagem de erro (deu errado)
+    try:
+        WebDriverWait(driver, TIMEOUT_LOGIN).until(
+            EC.any_of(
+                EC.visibility_of_element_located(SELETOR_LOGADO),
+                EC.visibility_of_element_located(SELETOR_ERRO_LOGIN),
+            )
+        )
+    except TimeoutException:
+        print("Erro: o login não respondeu a tempo. Confira os seletores do botão e da página logada.")
+        raise
+
+    erros = driver.find_elements(*SELETOR_ERRO_LOGIN)
+    if erros and erros[0].is_displayed():
+        print(f"Erro no login: {erros[0].text.strip()}")
+        raise RuntimeError("Login recusado pelo portal.")
+
+    print("Login realizado com sucesso.")
 
 
 def main():
     carregar_credenciais()
-    
+
+    driver = iniciar_navegador()
+    try:
+        abrir_portal(driver)
+        fazer_login(driver)
+        input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
+    finally:
+        driver.quit() #fecha o navegador mesmo se der erro
 
 
 if __name__ == "__main__":
     main()
-
-
-driver = webdriver.Chrome()
-driver.get(URL_PORTAL)
