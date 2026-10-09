@@ -27,7 +27,9 @@ SELETOR_CAMPO_SENHA = (By.ID, "Password")
 SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit") 
 SELETOR_LOGADO = (By.CSS_SELECTOR, ".fa-sign-out")  # ícone de logout, que só aparece quando logado
 SELETOR_ERRO_LOGIN = (By.CSS_SELECTOR, ".portal-login-feedback.portal-login-feedback-danger")  # mensagem de erro de login
+SELETOR_BOLETIM = (By.CSS_SELECTOR,".fa-list-alt" )
 URL_BOLETIM = "https://aluno.uvv.br/Boletim/Aluno/UhiEEfaaP7U="  # URL do boletim
+
 
 
 def carregar_credenciais():
@@ -48,7 +50,7 @@ def carregar_credenciais():
     print(f"Tamanho da senha: {len(SENHA)} caracteres")
 
 
-def iniciar_navegador():
+def iniciar_navegador(): 
     """Inicia o navegador e abre a página do portal."""
     driver = webdriver.Chrome() #faz o driver do navegador abrir o chrome
     driver.maximize_window() #maximiza a janela do navegador
@@ -108,10 +110,35 @@ def fazer_login(driver):
 
 
 def abrirBoletim(driver):
-    driver.get(URL_BOLETIM)
-    SELETOR_BOLETIM = (By.CSS_SELECTOR, ".fa-list-alt")
-    
+    url_antes = driver.current_url
+    abas_antes = len(driver.window_handles)
 
+    try: 
+        WebDriverWait(driver, TIMEOUT).until(
+            EC.element_to_be_clickable(SELETOR_BOLETIM)
+        ).click()
+    except TimeoutException:
+        print("Erro: o link do boletim não apareceu. Confira o seletor.")
+        raise
+    try:
+        WebDriverWait(driver, TIMEOUT).until(
+            lambda d: len(d.window_handles) > abas_antes or d.current_url != url_antes
+        )
+    except TimeoutException:
+        print("Erro: o boletim não abriu em nova aba ou mudou de página. Confira o seletor.")
+        raise
+    if len(driver.window_handles) > abas_antes:
+        driver.switch_to.window(driver.window_handles[-1])  # muda para a nova aba
+
+    WebDriverWait(driver, TIMEOUT).until(
+        lambda d: d.execute_script("return document.readyState") == "complete"
+    )
+    print(f"Boletim aberto com sucesso: {driver.current_url}")
+
+
+
+
+    
 def main():
     carregar_credenciais()
 
@@ -119,6 +146,7 @@ def main():
     try:
         abrir_portal(driver)
         fazer_login(driver)
+        abrirBoletim(driver)
         abrirBoletim(driver)
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
