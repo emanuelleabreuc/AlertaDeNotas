@@ -28,6 +28,7 @@ SELETOR_CAMPO_SENHA = (By.ID, "Password")
 SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit") 
 SELETOR_LOGADO = (By.CSS_SELECTOR, ".fa-sign-out")  # ícone de logout, que só aparece quando logado
 SELETOR_ERRO_LOGIN = (By.CSS_SELECTOR, ".portal-login-feedback.portal-login-feedback-danger")  # mensagem de erro de login
+SELETOR_BOLETIM = (By.CSS_SELECTOR, ".fa-list-alt")  # ícone do menu que leva ao boletim
 
 
 def carregar_credenciais():
@@ -106,6 +107,39 @@ def fazer_login(driver):
     print("Login realizado com sucesso.")
 
 
+def abrir_boletim(driver):
+    """Clica no ícone do boletim e espera a página do boletim carregar."""
+    url_antes = driver.current_url #guarda o endereço atual para saber quando a página mudar
+    abas_antes = len(driver.window_handles) #guarda quantas abas existem antes do clique
+
+    try:
+        WebDriverWait(driver, TIMEOUT).until(
+            EC.element_to_be_clickable(SELETOR_BOLETIM)
+        ).click() #espera o ícone poder ser clicado e clica
+    except TimeoutException:
+        print("Erro: o botão do boletim não apareceu. Confira o seletor .fa-list-alt.")
+        raise
+
+    # espera o clique fazer efeito: ou abre uma aba nova ou muda o endereço da página
+    try:
+        WebDriverWait(driver, TIMEOUT).until(
+            lambda d: len(d.window_handles) > abas_antes or d.current_url != url_antes
+        )
+    except TimeoutException:
+        print("Erro: o clique no boletim não abriu nenhuma página nova.")
+        raise
+
+    if len(driver.window_handles) > abas_antes:
+        driver.switch_to.window(driver.window_handles[-1]) #passa a olhar a aba nova
+
+    # espera a página terminar de carregar
+    WebDriverWait(driver, TIMEOUT).until(
+        lambda d: d.execute_script("return document.readyState") == "complete"
+    )
+
+    print(f"Boletim aberto: {driver.current_url}")
+
+
 def main():
     carregar_credenciais()
 
@@ -113,6 +147,7 @@ def main():
     try:
         abrir_portal(driver)
         fazer_login(driver)
+        abrir_boletim(driver)
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
         driver.quit() #fecha o navegador mesmo se der erro
