@@ -19,7 +19,6 @@ SENHA = os.getenv("SENHA")
 
 
 URL_PORTAL = "https://aluno.uvv.br/"
-DISCIPLINA = "Programação Orientada a Objetos II"  
 INTERVALO_MINUTOS = 30  # de quanto em quanto tempo checar 
 TIMEOUT = 15
 TIMEOUT_LOGIN = 20
@@ -28,6 +27,7 @@ SELETOR_CAMPO_SENHA = (By.ID, "Password")
 SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit") 
 SELETOR_LOGADO = (By.CSS_SELECTOR, ".fa-sign-out")  # ícone de logout, que só aparece quando logado
 SELETOR_ERRO_LOGIN = (By.CSS_SELECTOR, ".portal-login-feedback.portal-login-feedback-danger")  # mensagem de erro de login
+URL_BOLETIM = "https://aluno.uvv.br/Boletim/Aluno/UhiEEfaaP7U="  # URL do boletim
 
 
 def carregar_credenciais():
@@ -86,7 +86,7 @@ def fazer_login(driver):
         EC.element_to_be_clickable(SELETOR_BOTAO_ENTRAR)
     ).click() #espera o botão poder ser clicado e clica
 
-    # espera aparecer o ícone de logout (deu certo) OU a mensagem de erro (deu errado)
+    # espera aparecer o ícone de logout (deu certo) ou a mensagem de erro (deu errado)
     try:
         WebDriverWait(driver, TIMEOUT_LOGIN).until(
             EC.any_of(
@@ -106,6 +106,12 @@ def fazer_login(driver):
     print("Login realizado com sucesso.")
 
 
+
+def abrirBoletim(driver):
+    driver.get(URL_BOLETIM)
+    SELETOR_BOLETIM = (By.CSS_SELECTOR, ".fa-list-alt")
+    
+
 def main():
     carregar_credenciais()
 
@@ -113,6 +119,7 @@ def main():
     try:
         abrir_portal(driver)
         fazer_login(driver)
+        abrirBoletim(driver)
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
         driver.quit() #fecha o navegador mesmo se der erro
