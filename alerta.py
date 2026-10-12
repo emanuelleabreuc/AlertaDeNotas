@@ -164,24 +164,50 @@ def abrir_boletim(driver):
     )
     print(f"Boletim aberto com sucesso: {driver.current_url}")
 
+def limpar_valor(texto):
+    """Limpa o valor do texto, removendo espaços em branco e quebras de linha."""
+    texto = texto.strip()  # remove espaços em branco do início e do fim
+    if texto in ("-", ""): #se n tem valor, retorna None
+        return None 
+    return texto
 
+def extrair_notas(driver):
+    """Lê as tabelas do boletim e devolve as notas de cada disciplina."""
+    try:
+        WebDriverWait(driver, TIMEOUT).until(
+            EC.presence_of_element_located(SELETOR_LINHAS_NOTAS)
+        )
+    except TimeoutException:
+        print(
+            "Erro: as linhas de notas não apareceram. Confira o seletor "
+            "ou se a página aberta é mesmo a do boletim.")
+        raise
 
+    print("Tabela de notas carregada.")
 
-    
+    primeira_tabela = driver.find_element(*SELETOR_TABELA_NOTAS)  # localiza a tabela de notas
+    celulas_cabecalho = primeira_tabela.find_elements(*SELETOR_CABECALHO)  # localiza as células do cabeçalho da tabela
+    colunas = [th.text.strip() for th in celulas_cabecalho]  # pega os nomes das colunas
+    print(colunas)
+    print(len(colunas)) # imprime o número de colunas
+
+    linhas = driver.find_elements(*SELETOR_LINHAS_NOTAS)  # localiza as linhas da tabela
+    for linha in linhas:
+        disciplinas = linha.find_elements(*SELETOR_DISCIPLINA).text.strip() 
+        valores = [td.text for td in linha.find_elements(*SELETOR_CELULAS)]
+        print(disciplinas, len(valores))  # imprime a disciplina e os valores das notas
+     
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
-    # valida as credenciais antes de abrir o navegador (se faltar algo, o script para aqui)
     carregar_credenciais()
-
-    # abre o Chrome
     driver = iniciar_navegador()
 
-    # executa as etapas em ordem; o finally garante que o navegador feche no fim
     try:
         abrir_portal(driver)
         fazer_login(driver)
         abrir_boletim(driver)
-        print(len(driver.find_elements(*SELETOR_LINHAS_NOTAS)))
+        limpar_valor(texto)
+        extrair_notas(driver)
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
         driver.quit() #fecha o navegador mesmo se der erro
