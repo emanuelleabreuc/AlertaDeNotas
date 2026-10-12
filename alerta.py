@@ -192,11 +192,16 @@ def extrair_notas(driver):
     print(len(colunas)) # imprime o número de colunas
 
     linhas = driver.find_elements(*SELETOR_LINHAS_NOTAS)  # localiza as linhas da tabela
+    notas = {}  # vai guardar {disciplina: {coluna: valor}}
     for linha in linhas:
-        disciplinas = linha.find_elements(*SELETOR_DISCIPLINA).text.strip() 
+        disciplina = linha.find_element(*SELETOR_DISCIPLINA).text.strip()  # singular: cada linha tem uma só disciplina
         valores = [td.text for td in linha.find_elements(*SELETOR_CELULAS)]
-        print(disciplinas, len(valores))  # imprime a disciplina e os valores das notas
-     
+        print(disciplina, len(valores))  # imprime a disciplina e os valores das notas
+        # junta cada nome de coluna com o valor da célula na mesma posição, já limpo
+        notas[disciplina] = {coluna: limpar_valor(valor) for coluna, valor in zip(colunas, valores)}
+
+    print(notas)  # teste: confere as notas de todas as disciplinas
+
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
     carregar_credenciais()
@@ -206,7 +211,6 @@ def main():
         abrir_portal(driver)
         fazer_login(driver)
         abrir_boletim(driver)
-        limpar_valor(texto)
         extrair_notas(driver)
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
