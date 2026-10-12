@@ -28,6 +28,11 @@ SELETOR_BOTAO_ENTRAR = (By.CSS_SELECTOR, "button.portal-login-submit")
 SELETOR_LOGADO = (By.CSS_SELECTOR, ".fa-sign-out")  # ícone de logout, que só aparece quando logado
 SELETOR_ERRO_LOGIN = (By.CSS_SELECTOR, ".portal-login-feedback.portal-login-feedback-danger")  # mensagem de erro de login
 SELETOR_BOLETIM = (By.CSS_SELECTOR,".fa-list-alt" )
+SELETOR_TABELA_NOTAS = (By.CSS_SELECTOR, ".conteudo-body table" )
+SELETOR_LINHAS_NOTAS = (By.CSS_SELECTOR, ".conteudo-body tbody tr" )
+SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
+SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
+SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
 URL_BOLETIM = "https://aluno.uvv.br/Boletim/Aluno/UhiEEfaaP7U="  # URL do boletim
 
 
@@ -124,7 +129,7 @@ def fazer_login(driver):
 
 
 
-def abrirBoletim(driver):
+def abrir_boletim(driver):
     """Clica no link do boletim e espera ele abrir (na mesma aba ou em uma nova)."""
     # guarda a URL atual e a quantidade de abas antes do clique,
     # para depois saber se a página mudou ou se uma nova aba foi aberta
@@ -175,8 +180,8 @@ def main():
     try:
         abrir_portal(driver)
         fazer_login(driver)
-        abrirBoletim(driver)
-        abrirBoletim(driver)
+        abrir_boletim(driver)
+        print(len(driver.find_elements(*SELETOR_LINHAS_NOTAS)))
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
         driver.quit() #fecha o navegador mesmo se der erro
