@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import time
@@ -187,19 +188,24 @@ def extrair_notas(driver):
     primeira_tabela = driver.find_element(*SELETOR_TABELA_NOTAS)  # localiza a tabela de notas
     celulas_cabecalho = primeira_tabela.find_elements(*SELETOR_CABECALHO)  # localiza as células do cabeçalho da tabela
     colunas = [th.text.strip() for th in celulas_cabecalho]  # pega os nomes das colunas
-    print(colunas)
-    print(len(colunas)) # imprime o número de colunas
 
     linhas = driver.find_elements(*SELETOR_LINHAS_NOTAS)  # localiza as linhas da tabela
     notas = {}  # vai guardar {disciplina: {coluna: valor}}
     for linha in linhas:
         disciplina = linha.find_element(*SELETOR_DISCIPLINA).text.strip()  # singular: cada linha tem uma só disciplina
         valores = [td.text for td in linha.find_elements(*SELETOR_CELULAS)]
-        print(disciplina, len(valores))  # imprime a disciplina e os valores das notas
+
+        # o zip descarta sem avisar o que sobra quando as listas têm tamanhos diferentes,
+        # então confere antes: se a linha não bate com o cabeçalho, avisa e pula essa disciplina
+        if len(valores) != len(colunas):
+            print(f"Aviso: '{disciplina}' tem {len(valores)} células, mas o cabeçalho tem {len(colunas)}. Linha ignorada.")
+            continue
+
         # junta cada nome de coluna com o valor da célula na mesma posição, já limpo
         notas[disciplina] = {coluna: limpar_valor(valor) for coluna, valor in zip(colunas, valores)}
 
-    print(notas)  # teste: confere as notas de todas as disciplinas
+    print(f"Notas extraídas: {len(notas)} disciplinas.")
+    return notas  # devolve o dicionário para quem chamou a função
 
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
@@ -210,7 +216,9 @@ def main():
         abrir_portal(driver)
         fazer_login(driver)
         abrir_boletim(driver)
-        extrair_notas(driver)
+        notas = extrair_notas(driver)  # guarda o dicionário devolvido pela função
+        # mostra as notas de forma legível: uma disciplina por bloco e acentos corretos
+        print(json.dumps(notas, indent=2, ensure_ascii=False))
         input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
     finally:
         driver.quit() #fecha o navegador mesmo se der erro
