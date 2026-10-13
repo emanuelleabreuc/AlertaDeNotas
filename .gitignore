@@ -15,3 +15,6 @@ __pycache__/
 
 # Screenshots de erro (passo 10)
 *.png
+
+saida.txt
+anotacoes.txt

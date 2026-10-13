@@ -33,7 +33,6 @@ SELETOR_LINHAS_NOTAS = (By.CSS_SELECTOR, ".conteudo-body tbody tr" )
 SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
 SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
 SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
-URL_BOLETIM = "https://aluno.uvv.br/Boletim/Aluno/UhiEEfaaP7U="  # URL do boletim
 
 
 
