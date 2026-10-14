@@ -6,15 +6,18 @@
 .venv-1/
 .venv*/
 
-# Estado do script (passo 8)
+# Estado do script (notas da última verificação)
 estado.json
 
 # Python
 __pycache__/
 *.pyc
 
-# Screenshots de erro (passo 10)
+# Prints da tela quando dá erro
 *.png
 
 saida.txt
 anotacoes.txt
+
+# Rascunhos de teste
+rascunho.py
