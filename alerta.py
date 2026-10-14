@@ -208,26 +208,19 @@ def extrair_notas(driver):
     return notas  # devolve o dicionário para quem chamou a função
 
 
-# ---- lógica ----
+#---lógica principal---
 
 def comparar_notas(antigas, novas):
-    """Compara as notas antigas com as novas e devolve a lista do que mudou."""
-    mudancas = []  # cada mudança vira uma tupla (disciplina, coluna, valor_antigo, valor_novo)
-
-    # passa por cada disciplina do boletim atual
+    mudancas = []
     for disciplina, notas_novas in novas.items():
-        # notas dessa disciplina na verificação anterior; se a disciplina é nova, usa um dicionário vazio
         notas_antigas = antigas.get(disciplina, {})
-
-        # passa por cada coluna (AV1, TF1, ..., Resultado) da disciplina
         for coluna, valor_novo in notas_novas.items():
-            valor_antigo = notas_antigas.get(coluna)  # None se a coluna não existia antes
-
-            # se o valor mudou (nota saiu, foi corrigida ou apagada), guarda a mudança
-            if valor_antigo != valor_novo:
+            valor_antigo = notas_antigas.get(coluna)
+            if valor_novo != valor_antigo:
                 mudancas.append((disciplina, coluna, valor_antigo, valor_novo))
-
     return mudancas
+
+
 
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
