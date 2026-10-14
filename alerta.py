@@ -207,6 +207,21 @@ def extrair_notas(driver):
     print(f"Notas extraídas: {len(notas)} disciplinas.")
     return notas  # devolve o dicionário para quem chamou a função
 
+
+#---lógica principal---
+
+def comparar_notas(antigas, novas):
+    mudancas = []
+    for disciplina, notas_novas in novas.items():
+        notas_antigas = antigas.get(disciplina, {})
+        for coluna, valor_novo in notas_novas.items():
+            valor_antigo = notas_antigas.get(coluna)
+            if valor_novo != valor_antigo:
+                mudancas.append((disciplina, coluna, valor_antigo, valor_novo))
+    return mudancas
+
+
+
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
     carregar_credenciais()
