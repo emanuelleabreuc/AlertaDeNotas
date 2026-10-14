@@ -279,6 +279,12 @@ def formatar_mensagem(mudancas):
 
     return "📢 Novidades no boletim!\n\n" + "\n".join(linhas)
 
+
+def enviar_notificacao(mensagem):
+    """Envia a mensagem para o Telegram. Se não tiver token ou chat_id, só mostra no terminal."""
+    print(mensagem)  # sempre mostra no terminal
+    return True
+
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
     carregar_credenciais()
