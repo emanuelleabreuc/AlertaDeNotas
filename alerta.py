@@ -34,7 +34,10 @@ SELETOR_LINHAS_NOTAS = (By.CSS_SELECTOR, ".conteudo-body tbody tr" )
 SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
 SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
 SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
-
+ARQUIVO_ESTADO = "estado.json"
+COLUNAS_IGNORADAS = ["Período", "Turma", "Disciplina"]  # colunas que não importam para o alerta
+MEDIA = 7.0  # nota mínima para aprovação
+COLUNAS_PROVA = ["AV1", "AV2", "MP", "PF", "Final"]
 
 
 def carregar_credenciais():
@@ -207,6 +210,27 @@ def extrair_notas(driver):
     print(f"Notas extraídas: {len(notas)} disciplinas.")
     return notas  # devolve o dicionário para quem chamou a função
 
+#--- estado ---
+
+def salvar_estado(notas):
+    """Salva o dicionário de notas no arquivo JSON."""
+    with open(ARQUIVO_ESTADO, "w", encoding="utf-8") as f:
+        json.dump(notas, f, ensure_ascii=False, indent=2)
+    print(f"Estado salvo em {ARQUIVO_ESTADO}.")
+
+def carregar_estado():
+    """Carrega o dicionário de notas do arquivo JSON, se existir. Se não, devolve none"""
+    try:
+        with open(ARQUIVO_ESTADO, "r", encoding="utf-8") as f:
+            notas = json.load(f)
+        print(f"Estado carregado de {ARQUIVO_ESTADO}.")
+        return notas
+    except FileNotFoundError:
+        print("Nenhum estado anterior encontrado. Começando do zero.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Aviso: {ARQUIVO_ESTADO} está corrompido. Começando do zero.")
+        return None
 
 #---lógica principal---
 
@@ -220,23 +244,84 @@ def comparar_notas(antigas, novas):
                 mudancas.append((disciplina, coluna, valor_antigo, valor_novo))
     return mudancas
 
+#--- notificação ---
+
+def abaixo_da_media(valor):
+    """Diz se o valor é uma nota menor que a MEDIA. Textos como "Cursando" devolvem False."""
+    try:
+        return float(valor.replace(",", ".")) < MEDIA  # "1,90" vira 1.9 para poder comparar
+    except (ValueError, AttributeError):  # não é número ("Cursando") ou é None
+        return False
 
 
-def main():
-    """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
-    carregar_credenciais()
+def formatar_mensagem(mudancas):
+    """Formata a lista de mudanças em uma mensagem legível."""
+    linhas = []
+    for disciplina, coluna, antigo, novo in mudancas:
+        if coluna in COLUNAS_IGNORADAS:
+            continue  # ignora colunas que não importam para o alerta
+        if coluna == "Resultado":
+            linha = f"• {disciplina} — Resultado: {novo}"  # ex.: Cursando → Aprovado
+        elif antigo is None:
+            linha = f"• {disciplina} — {coluna}: {novo}"  # nota que acabou de sair
+        elif novo is None:
+            linha = f"• {disciplina} — {coluna}: removida (era {antigo})"
+
+        else:
+            linha = f"• {disciplina} — {coluna}: {antigo} → {novo} (corrigida)"
+
+        if coluna in COLUNAS_PROVA and abaixo_da_media(novo):
+            linha += " ⚠️ abaixo da média"  # adiciona um aviso se a nota estiver abaixo da média
+        linhas.append(linha)
+
+    if not linhas:
+        return None
+
+    return "📢 Novidades no boletim!\n\n" + "\n".join(linhas)
+
+
+def enviar_notificacao(mensagem):
+    """Envia a mensagem para o Telegram. Se não tiver token ou chat_id, só mostra no terminal."""
+    print(mensagem)  # sempre mostra no terminal
+    return True
+
+def verificar_notas():
+    """Compara as notas atuais com as anteriores e envia notificação se houver mudanças."""
+    notas_anteriores = carregar_estado()
     driver = iniciar_navegador()
 
     try:
         abrir_portal(driver)
         fazer_login(driver)
         abrir_boletim(driver)
-        notas = extrair_notas(driver)  # guarda o dicionário devolvido pela função
-        # mostra as notas de forma legível: uma disciplina por bloco e acentos corretos
-        print(json.dumps(notas, indent=2, ensure_ascii=False))
-        input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
+        notas_atuais = extrair_notas(driver)
     finally:
-        driver.quit() #fecha o navegador mesmo se der erro
+        driver.quit()
+
+    
+    if notas_anteriores is None:
+        salvar_estado(notas_atuais)
+        print(f"Primeira execução: monitorando {len(notas_atuais)} disciplinas.")
+        return
+
+    mudancas = comparar_notas(notas_anteriores, notas_atuais)
+    if not mudancas:
+        print("Nenhuma mudança nas notas.")
+        return
+
+    mensagem = formatar_mensagem(mudancas)
+    if mensagem:
+        enviou = enviar_notificacao(mensagem)
+        if not enviou:
+            print("Falha ao enviar a notificação. Vou tentar de novo na próxima verificação.")
+            return  # não salva: a mudança continua "nova" na próxima vez
+
+    salvar_estado(notas_atuais)  # atualiza o estado para a próxima verificação
+
+def main():
+    """Fluxo principal: valida o .env e faz uma verificação das notas."""
+    carregar_credenciais()  # se faltar algo no .env, o script para aqui
+    verificar_notas()       # abre o portal, compara com o estado e avisa se mudou
 
 
 if __name__ == "__main__":
