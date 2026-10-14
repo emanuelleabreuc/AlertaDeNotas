@@ -37,6 +37,7 @@ SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
 ARQUIVO_ESTADO = "estado.json"
 COLUNAS_IGNORADAS = ["Período", "Turma", "Disciplina"]  # colunas que não importam para o alerta
 MEDIA = 7.0  # nota mínima para aprovação
+COLUNAS_PROVA = ["AV1", "AV2", "MP", "PF", "Final"]
 
 
 def carregar_credenciais():
@@ -218,7 +219,7 @@ def salvar_estado(notas):
     print(f"Estado salvo em {ARQUIVO_ESTADO}.")
 
 def carregar_estado():
-    """Carrega o dicionário de notas do arquivo JSON, se existir. Se não, devolve um dicionário vazio."""
+    """Carrega o dicionário de notas do arquivo JSON, se existir. Se não, devolve none"""
     try:
         with open(ARQUIVO_ESTADO, "r", encoding="utf-8") as f:
             notas = json.load(f)
@@ -269,7 +270,7 @@ def formatar_mensagem(mudancas):
         else:
             linha = f"• {disciplina} — {coluna}: {antigo} → {novo} (corrigida)"
 
-        if abaixo_da_media(novo):
+        if coluna in COLUNAS_PROVA and abaixo_da_media(novo):
             linha += " ⚠️ abaixo da média"  # adiciona um aviso se a nota estiver abaixo da média
         linhas.append(linha)
 
