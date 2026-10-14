@@ -35,7 +35,8 @@ SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
 SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
 SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
 ARQUIVO_ESTADO = "estado.json"
-
+COLUNAS_IGNORADAS = ["Período", "Turma", "Disciplina"]  # colunas que não importam para o alerta
+MEDIA = 7.0  # nota mínima para aprovação
 
 
 def carregar_credenciais():
@@ -242,7 +243,40 @@ def comparar_notas(antigas, novas):
                 mudancas.append((disciplina, coluna, valor_antigo, valor_novo))
     return mudancas
 
+#--- notificação ---
 
+def abaixo_da_media(valor):
+    """Diz se o valor é uma nota menor que a MEDIA. Textos como "Cursando" devolvem False."""
+    try:
+        return float(valor.replace(",", ".")) < MEDIA  # "1,90" vira 1.9 para poder comparar
+    except (ValueError, AttributeError):  # não é número ("Cursando") ou é None
+        return False
+
+
+def formatar_mensagem(mudancas):
+    """Formata a lista de mudanças em uma mensagem legível."""
+    linhas = []
+    for disciplina, coluna, antigo, novo in mudancas:
+        if coluna in COLUNAS_IGNORADAS:
+            continue  # ignora colunas que não importam para o alerta
+        if coluna == "Resultado":
+            linha = f"• {disciplina} — Resultado: {novo}"  # ex.: Cursando → Aprovado
+        elif antigo is None:
+            linha = f"• {disciplina} — {coluna}: {novo}"  # nota que acabou de sair
+        elif novo is None:
+            linha = f"• {disciplina} — {coluna}: removida (era {antigo})"
+
+        else:
+            linha = f"• {disciplina} — {coluna}: {antigo} → {novo} (corrigida)"
+
+        if abaixo_da_media(novo):
+            linha += " ⚠️ abaixo da média"  # adiciona um aviso se a nota estiver abaixo da média
+        linhas.append(linha)
+
+    if not linhas:
+        return None
+
+    return "📢 Novidades no boletim!\n\n" + "\n".join(linhas)
 
 def main():
     """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
