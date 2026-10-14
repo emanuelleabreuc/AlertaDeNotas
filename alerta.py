@@ -2,7 +2,9 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timedelta
 
+import requests  # faz requisições HTTP (usado para mandar mensagem no Telegram)
 from dotenv import load_dotenv
 from selenium import webdriver  # selenium automatiza ações em navegadores
 from selenium.webdriver.common.by import By
@@ -12,16 +14,24 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 
-load_dotenv() #le o arq .env
+# pasta onde está este arquivo. Os outros arquivos (.env, estado.json, prints de erro) ficam nela,
+# mesmo quando o script é chamado de outra pasta (ex.: pelo Agendador de Tarefas do Windows)
+PASTA_PROJETO = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(os.path.join(PASTA_PROJETO, ".env")) #le o arq .env
 
 
 MATRICULA = os.getenv("MATRICULA")
 SENHA = os.getenv("SENHA")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # token do bot, dado pelo @BotFather
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # para quem o bot manda a mensagem (você)
 
 
 URL_PORTAL = "https://aluno.uvv.br/"
 INTERVALO_MINUTOS = 30  # de quanto em quanto tempo checar 
+HEADLESS = True  # True: o Chrome roda sem abrir janela. Mude para False para ver o navegador ao depurar
 TIMEOUT = 15
+TIMEOUT_TELEGRAM = 10  # segundos esperando o Telegram responder
 TIMEOUT_LOGIN = 20
 SELETOR_CAMPO_MATRICULA = (By.ID, "Matricula")
 SELETOR_CAMPO_SENHA = (By.ID, "Password")
@@ -34,7 +44,7 @@ SELETOR_LINHAS_NOTAS = (By.CSS_SELECTOR, ".conteudo-body tbody tr" )
 SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
 SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
 SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
-ARQUIVO_ESTADO = "estado.json"
+ARQUIVO_ESTADO = os.path.join(PASTA_PROJETO, "estado.json")
 COLUNAS_IGNORADAS = ["Período", "Turma", "Disciplina"]  # colunas que não importam para o alerta
 MEDIA = 7.0  # nota mínima para aprovação
 COLUNAS_PROVA = ["AV1", "AV2", "MP", "PF", "Final"]
@@ -53,6 +63,10 @@ def carregar_credenciais():
     if not SENHA or SENHA.startswith("coloque_"):
         faltando.append("SENHA")
 
+    # o Telegram é opcional, mas se uma das duas variáveis foi preenchida, a outra também precisa ser
+    if telegram_configurado() != bool(preenchida(TELEGRAM_TOKEN) or preenchida(TELEGRAM_CHAT_ID)):
+        faltando.append("TELEGRAM_TOKEN e TELEGRAM_CHAT_ID (preencha os dois ou nenhum)")
+
     # se faltou alguma variável, mostra quais são e encerra o script com código de erro
     if faltando:
         print(f"Erro: preencha no arquivo .env -> {', '.join(faltando)}")
@@ -62,13 +76,46 @@ def carregar_credenciais():
     print("Variáveis carregadas com sucesso.")
     print(f"Matrícula: {MATRICULA}")
     print(f"Tamanho da senha: {len(SENHA)} caracteres")
+    if telegram_configurado():
+        print("Telegram configurado: as novidades vão chegar no celular.")
+    else:
+        print("Telegram não configurado: as novidades só vão aparecer no terminal.")
+
+
+def preenchida(variavel):
+    """Diz se uma variável do .env foi preenchida (não está vazia nem com o texto de exemplo)."""
+    return bool(variavel) and not variavel.startswith("coloque_")
+
+
+def telegram_configurado():
+    """Diz se o token e o chat_id do Telegram foram preenchidos no .env."""
+    return preenchida(TELEGRAM_TOKEN) and preenchida(TELEGRAM_CHAT_ID)
 
 
 def iniciar_navegador(): 
-    """Inicia o navegador e abre a página do portal."""
-    driver = webdriver.Chrome() #faz o driver do navegador abrir o chrome
-    driver.maximize_window() #maximiza a janela do navegador
+    """Inicia o Chrome (sem janela se HEADLESS for True)."""
+    opcoes = webdriver.ChromeOptions()
+    if HEADLESS:
+        opcoes.add_argument("--headless=new")  # roda o Chrome sem abrir janela
+        # sem janela, o Chrome usa uma tela pequena; com ela o portal pode esconder o menu e o ícone do boletim
+        opcoes.add_argument("--window-size=1920,1080")
+
+    driver = webdriver.Chrome(options=opcoes) #faz o driver do navegador abrir o chrome
+    if not HEADLESS:
+        driver.maximize_window() #maximiza a janela do navegador
     return driver #mostra o driver para ser usado em outras funções
+
+
+def salvar_screenshot(driver, motivo):
+    """Salva um print da tela do navegador, para entender o que deu errado (útil sem janela)."""
+    agora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # ex.: 2026-10-14_15-30-00
+    caminho = os.path.join(PASTA_PROJETO, f"erro_{agora}_{motivo}.png")
+    try:
+        driver.save_screenshot(caminho)
+        print(f"Print da tela salvo em {caminho}")
+    except Exception:
+        # se nem o print funcionar (navegador travado), só avisa: o erro original é o que importa
+        print("Não foi possível salvar o print da tela.")
 
 def abrir_portal(driver):
     """Abre o portal e espera o campo de matrícula ficar visível."""
@@ -219,7 +266,7 @@ def salvar_estado(notas):
     print(f"Estado salvo em {ARQUIVO_ESTADO}.")
 
 def carregar_estado():
-    """Carrega o dicionário de notas do arquivo JSON, se existir. Se não, devolve none"""
+    """Carrega o dicionário de notas do arquivo JSON. Se não existir ou estiver corrompido, devolve None."""
     try:
         with open(ARQUIVO_ESTADO, "r", encoding="utf-8") as f:
             notas = json.load(f)
@@ -281,9 +328,32 @@ def formatar_mensagem(mudancas):
 
 
 def enviar_notificacao(mensagem):
-    """Envia a mensagem para o Telegram. Se não tiver token ou chat_id, só mostra no terminal."""
+    """Envia a mensagem para o Telegram. Se não tiver token ou chat_id, só mostra no terminal.
+    Devolve True se a entrega deu certo e False se falhou."""
     print(mensagem)  # sempre mostra no terminal
+
+    if not telegram_configurado():
+        return True  # sem Telegram, mostrar no terminal já é a entrega
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    try:
+        resposta = requests.post(
+            url,
+            data={"chat_id": TELEGRAM_CHAT_ID, "text": mensagem},
+            timeout=TIMEOUT_TELEGRAM,  # sem timeout, uma internet travada deixaria o script esperando para sempre
+        )
+        resposta.raise_for_status()  # transforma respostas de erro do Telegram (401, 400...) em exceção
+    except requests.HTTPError:
+        # não mostra o erro inteiro: a mensagem dele contém a URL, e a URL contém o token
+        print(f"Erro do Telegram (código {resposta.status_code}). Confira TELEGRAM_TOKEN e TELEGRAM_CHAT_ID no .env.")
+        return False
+    except requests.RequestException as erro:
+        print(f"Erro de conexão com o Telegram ({type(erro).__name__}). Confira a internet.")
+        return False
+
+    print("Notificação enviada pelo Telegram.")
     return True
+
 
 def verificar_notas():
     """Compara as notas atuais com as anteriores e envia notificação se houver mudanças."""
@@ -295,13 +365,23 @@ def verificar_notas():
         fazer_login(driver)
         abrir_boletim(driver)
         notas_atuais = extrair_notas(driver)
+    except Exception:
+        # tira o print antes do finally fechar o navegador, e repassa o erro para cima
+        salvar_screenshot(driver, "verificacao")
+        raise
     finally:
         driver.quit()
 
-    
+    # se nenhuma disciplina foi lida, não salva: um estado vazio faria tudo parecer novo na próxima vez
+    if not notas_atuais:
+        print("Aviso: nenhuma disciplina foi lida no boletim. O estado não foi alterado.")
+        return
+
     if notas_anteriores is None:
         salvar_estado(notas_atuais)
         print(f"Primeira execução: monitorando {len(notas_atuais)} disciplinas.")
+        # avisa que o monitoramento começou (serve também para testar o Telegram)
+        enviar_notificacao(f"✅ AlertaDeNotas ativado! Monitorando {len(notas_atuais)} disciplinas.")
         return
 
     mudancas = comparar_notas(notas_anteriores, notas_atuais)
@@ -319,9 +399,31 @@ def verificar_notas():
     salvar_estado(notas_atuais)  # atualiza o estado para a próxima verificação
 
 def main():
-    """Fluxo principal: valida o .env e faz uma verificação das notas."""
+    """Fluxo principal: valida o .env e verifica as notas a cada INTERVALO_MINUTOS.
+    Com o argumento --uma-vez, verifica só uma vez e encerra (para usar com o Agendador de Tarefas)."""
     carregar_credenciais()  # se faltar algo no .env, o script para aqui
-    verificar_notas()       # abre o portal, compara com o estado e avisa se mudou
+
+    # modo "uma vez": o Agendador de Tarefas do Windows é quem repete a cada 30 minutos
+    if "--uma-vez" in sys.argv:
+        verificar_notas()
+        return
+
+    # modo contínuo: o próprio script repete até você apertar Ctrl+C
+    try:
+        while True:
+            print(f"\n--- Verificação às {datetime.now().strftime('%H:%M')} ---")
+            try:
+                verificar_notas()  # abre o portal, compara com o estado e avisa se mudou
+            except Exception as erro:
+                # um erro em uma verificação (portal fora do ar, internet caiu) não derruba o script
+                resumo = str(erro).strip().splitlines()[0] if str(erro).strip() else ""  # só a 1ª linha: erros do Selenium são longos
+                print(f"Erro nesta verificação ({type(erro).__name__}: {resumo}) Tento de novo na próxima.")
+
+            proxima = datetime.now() + timedelta(minutes=INTERVALO_MINUTOS)
+            print(f"Próxima verificação às {proxima.strftime('%H:%M')}. (Ctrl+C para encerrar)")
+            time.sleep(INTERVALO_MINUTOS * 60)  # sleep recebe segundos
+    except KeyboardInterrupt:
+        print("\nMonitoramento encerrado.")
 
 
 if __name__ == "__main__":
