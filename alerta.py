@@ -285,21 +285,43 @@ def enviar_notificacao(mensagem):
     print(mensagem)  # sempre mostra no terminal
     return True
 
-def main():
-    """Fluxo principal: valida o .env, abre o navegador, faz login e abre o boletim."""
-    carregar_credenciais()
+def verificar_notas():
+    """Compara as notas atuais com as anteriores e envia notificação se houver mudanças."""
+    notas_anteriores = carregar_estado()
     driver = iniciar_navegador()
 
     try:
         abrir_portal(driver)
         fazer_login(driver)
         abrir_boletim(driver)
-        notas = extrair_notas(driver)  # guarda o dicionário devolvido pela função
-        # mostra as notas de forma legível: uma disciplina por bloco e acentos corretos
-        print(json.dumps(notas, indent=2, ensure_ascii=False))
-        input("Pressione Enter para fechar o navegador...") #segura o navegador aberto
+        notas_atuais = extrair_notas(driver)
     finally:
-        driver.quit() #fecha o navegador mesmo se der erro
+        driver.quit()
+
+    
+    if notas_anteriores is None:
+        salvar_estado(notas_atuais)
+        print(f"Primeira execução: monitorando {len(notas_atuais)} disciplinas.")
+        return
+
+    mudancas = comparar_notas(notas_anteriores, notas_atuais)
+    if not mudancas:
+        print("Nenhuma mudança nas notas.")
+        return
+
+    mensagem = formatar_mensagem(mudancas)
+    if mensagem:
+        enviou = enviar_notificacao(mensagem)
+        if not enviou:
+            print("Falha ao enviar a notificação. Vou tentar de novo na próxima verificação.")
+            return  # não salva: a mudança continua "nova" na próxima vez
+
+    salvar_estado(notas_atuais)  # atualiza o estado para a próxima verificação
+
+def main():
+    """Fluxo principal: valida o .env e faz uma verificação das notas."""
+    carregar_credenciais()  # se faltar algo no .env, o script para aqui
+    verificar_notas()       # abre o portal, compara com o estado e avisa se mudou
 
 
 if __name__ == "__main__":
