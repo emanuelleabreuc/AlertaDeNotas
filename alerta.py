@@ -34,6 +34,7 @@ SELETOR_LINHAS_NOTAS = (By.CSS_SELECTOR, ".conteudo-body tbody tr" )
 SELETOR_CABECALHO = (By.CSS_SELECTOR, "thead th")
 SELETOR_CELULAS = (By.CSS_SELECTOR, "td")
 SELETOR_DISCIPLINA = (By.CSS_SELECTOR, "td.texto" )
+ARQUIVO_ESTADO = "estado.json"
 
 
 
@@ -207,6 +208,27 @@ def extrair_notas(driver):
     print(f"Notas extraídas: {len(notas)} disciplinas.")
     return notas  # devolve o dicionário para quem chamou a função
 
+#--- estado ---
+
+def salvar_estado(notas):
+    """Salva o dicionário de notas no arquivo JSON."""
+    with open(ARQUIVO_ESTADO, "w", encoding="utf-8") as f:
+        json.dump(notas, f, ensure_ascii=False, indent=2)
+    print(f"Estado salvo em {ARQUIVO_ESTADO}.")
+
+def carregar_estado():
+    """Carrega o dicionário de notas do arquivo JSON, se existir. Se não, devolve um dicionário vazio."""
+    try:
+        with open(ARQUIVO_ESTADO, "r", encoding="utf-8") as f:
+            notas = json.load(f)
+        print(f"Estado carregado de {ARQUIVO_ESTADO}.")
+        return notas
+    except FileNotFoundError:
+        print("Nenhum estado anterior encontrado. Começando do zero.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Aviso: {ARQUIVO_ESTADO} está corrompido. Começando do zero.")
+        return None
 
 #---lógica principal---
 
