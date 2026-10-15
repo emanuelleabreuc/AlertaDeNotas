@@ -26,6 +26,10 @@ SENHA = os.getenv("SENHA")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # token do bot, dado pelo @BotFather
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # para quem o bot manda a mensagem (você)
 
+# o GitHub Actions define GITHUB_ACTIONS=true. Lá o repositório é público e os logs também,
+# então as notas não podem aparecer no terminal: só vão pelo Telegram
+NO_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+
 
 URL_PORTAL = "https://aluno.uvv.br/"
 INTERVALO_MINUTOS = 30  # de quanto em quanto tempo checar 
@@ -67,9 +71,14 @@ def carregar_credenciais():
     if telegram_configurado() != bool(preenchida(TELEGRAM_TOKEN) or preenchida(TELEGRAM_CHAT_ID)):
         faltando.append("TELEGRAM_TOKEN e TELEGRAM_CHAT_ID (preencha os dois ou nenhum)")
 
+    # no GitHub Actions ninguém olha o terminal: sem Telegram, as novidades se perderiam
+    if NO_GITHUB_ACTIONS and not telegram_configurado():
+        faltando.append("TELEGRAM_TOKEN e TELEGRAM_CHAT_ID (obrigatórios no GitHub Actions)")
+
     # se faltou alguma variável, mostra quais são e encerra o script com código de erro
     if faltando:
-        print(f"Erro: preencha no arquivo .env -> {', '.join(faltando)}")
+        onde = "nos Secrets do GitHub" if NO_GITHUB_ACTIONS else "no arquivo .env"
+        print(f"Erro: preencha {onde} -> {', '.join(faltando)}")
         sys.exit(1)
 
     # tudo certo: confirma o carregamento (mostra só o tamanho da senha, nunca a senha em si)
@@ -330,7 +339,10 @@ def formatar_mensagem(mudancas):
 def enviar_notificacao(mensagem):
     """Envia a mensagem para o Telegram. Se não tiver token ou chat_id, só mostra no terminal.
     Devolve True se a entrega deu certo e False se falhou."""
-    print(mensagem)  # sempre mostra no terminal
+    if NO_GITHUB_ACTIONS:
+        print("Enviando notificação (o conteúdo não aparece aqui porque o log do GitHub é público).")
+    else:
+        print(mensagem)  # mostra no terminal
 
     if not telegram_configurado():
         return True  # sem Telegram, mostrar no terminal já é a entrega
@@ -400,10 +412,10 @@ def verificar_notas():
 
 def main():
     """Fluxo principal: valida o .env e verifica as notas a cada INTERVALO_MINUTOS.
-    Com o argumento --uma-vez, verifica só uma vez e encerra (para usar com o Agendador de Tarefas)."""
+    Com o argumento --uma-vez, verifica só uma vez e encerra (para o GitHub Actions ou o Agendador de Tarefas)."""
     carregar_credenciais()  # se faltar algo no .env, o script para aqui
 
-    # modo "uma vez": o Agendador de Tarefas do Windows é quem repete a cada 30 minutos
+    # modo "uma vez": quem repete a cada 30 minutos é o GitHub Actions (ou o Agendador de Tarefas)
     if "--uma-vez" in sys.argv:
         verificar_notas()
         return

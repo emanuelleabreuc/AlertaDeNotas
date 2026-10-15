@@ -1,0 +1,60 @@
+# Roda o alerta.py nos servidores do GitHub, sem precisar do seu computador ligado.
+# Configuração (credenciais nos Secrets) explicada no README.md.
+name: Verificar notas
+
+on:
+  schedule:
+    # a cada 30 minutos (nos minutos 7 e 37: na hora cheia o GitHub costuma atrasar mais)
+    - cron: "7,37 * * * *"
+  workflow_dispatch: # botão "Run workflow" na aba Actions, para testar na hora
+
+# nunca roda duas verificações ao mesmo tempo (as duas mexeriam no mesmo estado.json)
+concurrency:
+  group: verificar-notas
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest  # já vem com o Google Chrome instalado
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # o servidor é apagado ao fim de cada execução, então o estado.json da última vez
+      # fica guardado no cache do GitHub (e não no repositório, que é público)
+      - name: Recuperar estado.json
+        uses: actions/cache/restore@v4
+        with:
+          path: estado.json
+          key: estado-${{ github.run_id }}
+          restore-keys: estado-
+
+      - name: Guardar hash do estado anterior
+        id: antes
+        run: echo "hash=${{ hashFiles('estado.json') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar notas
+        run: python alerta.py --uma-vez
+        env:
+          MATRICULA: ${{ secrets.MATRICULA }}
+          SENHA: ${{ secrets.SENHA }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      # só cria uma entrada nova no cache quando as notas mudaram
+      - name: Salvar estado.json
+        if: always() && hashFiles('estado.json') != '' && hashFiles('estado.json') != steps.antes.outputs.hash
+        uses: actions/cache/save@v4
+        with:
+          path: estado.json
+          key: estado-${{ github.run_id }}-${{ github.run_attempt }}

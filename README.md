@@ -52,12 +52,35 @@ O token funciona como uma senha: deixe-o só no `.env`. Se ele vazar, mande `/re
 .\.venv\Scripts\python.exe alerta.py
 ```
 
-**Uma verificação só** (para usar com o Agendador de Tarefas):
+**Uma verificação só** (é o que o GitHub Actions e o Agendador de Tarefas usam):
 ```
 .\.venv\Scripts\python.exe alerta.py --uma-vez
 ```
 
-### Rodando sozinho pelo Agendador de Tarefas do Windows
+### Rodando no GitHub Actions (funciona com o computador desligado)
+
+O arquivo `.github/workflows/alerta.yml` faz o GitHub rodar `alerta.py --uma-vez` a cada 30 minutos nos servidores dele. É de graça porque o repositório é público.
+
+1. No GitHub, abra o repositório → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** e crie estes quatro (os mesmos valores do `.env`):
+   - `MATRICULA`
+   - `SENHA`
+   - `TELEGRAM_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+
+   No GitHub o Telegram é obrigatório: é o único jeito de as novidades chegarem até você.
+2. Vá na aba **Actions** → **Verificar notas** → **Run workflow** para testar na hora. Na primeira execução chega no Telegram a mensagem "✅ AlertaDeNotas ativado!".
+3. Pronto: daí em diante ele roda sozinho.
+
+Bom saber:
+- O agendamento só vale depois que o workflow estiver na branch `main`.
+- O GitHub pode atrasar a execução alguns minutos (às vezes mais) em horários de muito uso.
+- Os logs do repositório público podem ser vistos por qualquer pessoa. Por isso, no GitHub as notas **não** são escritas no log (só vão pelo Telegram), e as credenciais aparecem como `***`.
+- O `estado.json` fica guardado no cache do Actions, não no repositório.
+- Se uma verificação falhar (portal fora do ar, por exemplo), o GitHub manda um e-mail avisando. A próxima verificação tenta de novo normalmente.
+- Se o repositório ficar **60 dias sem nenhum commit**, o GitHub desativa o agendamento (e avisa por e-mail antes). Para reativar, é só ir em **Actions** → **Verificar notas** → **Enable workflow**.
+- Para pausar, use **Actions** → **Verificar notas** → **⋯** → **Disable workflow**. Se for rodar também no seu computador, pause o do GitHub para não receber cada aviso duas vezes.
+
+### Rodando pelo Agendador de Tarefas do Windows (só com o computador ligado)
 
 1. Abra o **Agendador de Tarefas** → **Criar Tarefa**.
 2. **Disparadores** → Novo → Diariamente, e marque **Repetir a tarefa a cada: 30 minutos**, por **Indefinidamente**.
@@ -94,3 +117,4 @@ Os testes não abrem o navegador nem acessam a internet:
 | `.env.example` | modelo do `.env` |
 | `estado.json` | notas da última verificação (criado sozinho, não vai para o GitHub) |
 | `requirements.txt` | bibliotecas usadas |
+| `.github/workflows/alerta.yml` | agendamento no GitHub Actions |
