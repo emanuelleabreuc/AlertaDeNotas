@@ -12,7 +12,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-
+ 
 
 # pasta onde está este arquivo. Os outros arquivos (.env, estado.json, prints de erro) ficam nela,
 # mesmo quando o script é chamado de outra pasta (ex.: pelo Agendador de Tarefas do Windows)
