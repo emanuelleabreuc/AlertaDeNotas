@@ -6,7 +6,7 @@ Se nada der errado, aparece "Todos os testes passaram."
 
 import os
 import tempfile
-
+ 
 import requests
 
 import alerta
