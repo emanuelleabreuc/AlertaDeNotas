@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   verificar:
-    runs-on: ubuntu-latest  # já vem com o Google Chrome instalado
+    runs-on: ubuntu-24.04  # já vem com o Chrome; versão fixa para não mudar sozinha
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -33,7 +33,7 @@ jobs:
       # o servidor é apagado ao fim de cada execução, então o estado.json da última vez
       # fica guardado no cache do GitHub (e não no repositório, que é público)
       - name: Recuperar estado.json
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: estado.json
           key: estado-${{ github.run_id }}
@@ -54,7 +54,7 @@ jobs:
       # só cria uma entrada nova no cache quando as notas mudaram
       - name: Salvar estado.json
         if: always() && hashFiles('estado.json') != '' && hashFiles('estado.json') != steps.antes.outputs.hash
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: estado.json
           key: estado-${{ github.run_id }}-${{ github.run_attempt }}
