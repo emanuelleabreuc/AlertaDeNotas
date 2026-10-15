@@ -4,6 +4,8 @@ Para rodar: python test_alerta.py
 Se nada der errado, aparece "Todos os testes passaram."
 """
 
+import contextlib
+import io
 import os
 import tempfile
  
@@ -154,6 +156,18 @@ def test_envio_telegram_falha():
 
     com_telegram("123:abc", "999", sem_internet)
     assert alerta.enviar_notificacao("oi") is False
+
+
+def test_envio_no_github_actions_nao_mostra_notas_no_log():
+    com_telegram("123:abc", "999", lambda url, data, timeout: RespostaFalsa(200))
+    alerta.NO_GITHUB_ACTIONS = True
+    saida = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(saida):
+            assert alerta.enviar_notificacao("Redes — AV1: 8,50") is True
+    finally:
+        alerta.NO_GITHUB_ACTIONS = False
+    assert "8,50" not in saida.getvalue()
 
 
 # ---- verificar_notas (navegador simulado) ----
